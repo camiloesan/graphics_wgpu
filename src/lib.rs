@@ -1,3 +1,5 @@
+mod texture;
+
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 use winit::{
@@ -11,13 +13,14 @@ use winit::{
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
-    color: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
 impl Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -26,9 +29,9 @@ impl Vertex {
                     format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2, // NEW!
                 },
             ],
         }
@@ -36,74 +39,75 @@ impl Vertex {
 }
 
 const VERTICES: &[Vertex] = &[
+    // Changed
     Vertex {
         position: [-0.0868241, 0.49240386, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.4131759, 0.00759614],
     }, // A
     Vertex {
         position: [-0.49513406, 0.06958647, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.0048659444, 0.43041354],
     }, // B
     Vertex {
         position: [-0.21918549, -0.44939706, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.28081453, 0.949397],
     }, // C
     Vertex {
         position: [0.35966998, -0.3473291, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.85967, 0.84732914],
     }, // D
     Vertex {
         position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.9414737, 0.2652641],
     }, // E
 ];
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
-const VERTICES2: &[Vertex] = &[
-    Vertex {
-        position: [-0.35, 0.0, 0.0],
-        color: [0.2, 0.1, 0.5],
-    }, // A
-    Vertex {
-        position: [-0.5, -0.35, 0.0],
-        color: [0.1, 0.7, 0.5],
-    }, // B
-    Vertex {
-        position: [-0.2, -0.35, 0.0],
-        color: [0.7, 0.3, 0.3],
-    }, // C
-    Vertex {
-        position: [-0.05, 0.0, 0.0],
-        color: [0.9, 0.64, 0.22],
-    }, // D
-    Vertex {
-        position: [0.1, -0.35, 0.0],
-        color: [1.0, 0.2, 0.2],
-    }, // E
-    Vertex {
-        position: [-0.35, -0.70, 0.0],
-        color: [0.2, 0.2, 0.2],
-    }, // F
-    Vertex {
-        position: [-0.05, -0.70, 0.0],
-        color: [0.2, 0.2, 0.2],
-    }, // G
-    Vertex {
-        position: [0.1, 0.35, 0.0],
-        color: [1.0, 0.2, 0.2],
-    }, // H
-    Vertex {
-        position: [-0.05, 0.70, 0.0],
-        color: [0.2, 0.2, 0.2],
-    }, // I
-    Vertex {
-        position: [0.25, 0.70, 0.0],
-        color: [0.2, 0.0, 0.0],
-    }, // J
-];
-const INDICES2: &[u16] = &[
-    0, 1, 2, 0, 2, 3, 3, 2, 4, 1, 5, 2, 2, 6, 4, 7, 3, 4, 8, 3, 7, 8, 7, 9,
-];
+// const VERTICES2: &[Vertex] = &[
+//     Vertex {
+//         position: [-0.35, 0.0, 0.0],
+//         color: [0.2, 0.1, 0.5],
+//     }, // A
+//     Vertex {
+//         position: [-0.5, -0.35, 0.0],
+//         color: [0.1, 0.7, 0.5],
+//     }, // B
+//     Vertex {
+//         position: [-0.2, -0.35, 0.0],
+//         color: [0.7, 0.3, 0.3],
+//     }, // C
+//     Vertex {
+//         position: [-0.05, 0.0, 0.0],
+//         color: [0.9, 0.64, 0.22],
+//     }, // D
+//     Vertex {
+//         position: [0.1, -0.35, 0.0],
+//         color: [1.0, 0.2, 0.2],
+//     }, // E
+//     Vertex {
+//         position: [-0.35, -0.70, 0.0],
+//         color: [0.2, 0.2, 0.2],
+//     }, // F
+//     Vertex {
+//         position: [-0.05, -0.70, 0.0],
+//         color: [0.2, 0.2, 0.2],
+//     }, // G
+//     Vertex {
+//         position: [0.1, 0.35, 0.0],
+//         color: [1.0, 0.2, 0.2],
+//     }, // H
+//     Vertex {
+//         position: [-0.05, 0.70, 0.0],
+//         color: [0.2, 0.2, 0.2],
+//     }, // I
+//     Vertex {
+//         position: [0.25, 0.70, 0.0],
+//         color: [0.2, 0.0, 0.0],
+//     }, // J
+// ];
+// const INDICES2: &[u16] = &[
+//     0, 1, 2, 0, 2, 3, 3, 2, 4, 1, 5, 2, 2, 6, 4, 7, 3, 4, 8, 3, 7, 8, 7, 9,
+// ];
 
 struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -119,10 +123,13 @@ struct State<'a> {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
 
-    vertex_buffer2: wgpu::Buffer,
-    num_vertices2: u32,
-    index_buffer2: wgpu::Buffer,
-    num_indices2: u32,
+    // vertex_buffer2: wgpu::Buffer,
+    // num_vertices2: u32,
+    // index_buffer2: wgpu::Buffer,
+    // num_indices2: u32,
+    diffuse_bind_group: wgpu::BindGroup,
+    diffuse_texture: texture::Texture, // NEW
+
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
@@ -177,15 +184,14 @@ impl<'a> State<'a> {
             .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
-        // one will result in all the colors coming out darker. If you want to support non
-        // sRGB surfaces, you'll need to account for that when drawing to the frame.
+
         let surface_format = surface_caps
             .formats
             .iter()
             .find(|f| f.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -197,12 +203,57 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        surface.configure(&device, &config);
+        let diffuse_bytes = include_bytes!("happy-tree.png");
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the
+                        // corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view), // CHANGED!
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler), // CHANGED!
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader_tex.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -301,18 +352,18 @@ impl<'a> State<'a> {
         });
         let num_indices = INDICES.len() as u32;
 
-        let num_vertices2 = VERTICES2.len() as u32;
-        let vertex_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex buffer giraffe"),
-            contents: bytemuck::cast_slice(VERTICES2),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let index_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index buffer giraffe"),
-            contents: bytemuck::cast_slice(INDICES2),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let num_indices2 = INDICES2.len() as u32;
+        // let num_vertices2 = VERTICES2.len() as u32;
+        // let vertex_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //     label: Some("Vertex buffer giraffe"),
+        //     contents: bytemuck::cast_slice(VERTICES2),
+        //     usage: wgpu::BufferUsages::VERTEX,
+        // });
+        // let index_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //     label: Some("Index buffer giraffe"),
+        //     contents: bytemuck::cast_slice(INDICES2),
+        //     usage: wgpu::BufferUsages::INDEX,
+        // });
+        // let num_indices2 = INDICES2.len() as u32;
 
         Self {
             window,
@@ -329,10 +380,12 @@ impl<'a> State<'a> {
             index_buffer,
             num_indices,
 
-            num_vertices2,
-            vertex_buffer2,
-            index_buffer2,
-            num_indices2,
+            // num_vertices2,
+            // vertex_buffer2,
+            // index_buffer2,
+            // num_indices2,
+            diffuse_bind_group,
+            diffuse_texture,
         }
     }
 
@@ -404,6 +457,10 @@ impl<'a> State<'a> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
 
             // render_pass.set_pipeline(if self.use_color {
             //     &self.render_pipeline
@@ -412,15 +469,18 @@ impl<'a> State<'a> {
             // });
 
             if self.use_color {
-                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+                // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                // render_pass
+                //     .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+                //
+                // render_pass.set_pipeline(&self.render_pipeline);
+                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             } else {
-                render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
-                render_pass
-                    .set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
+                // render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
+                // render_pass
+                //     .set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
+                // render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
             }
 
             // render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
