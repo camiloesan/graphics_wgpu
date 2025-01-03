@@ -128,7 +128,10 @@ struct State<'a> {
     // index_buffer2: wgpu::Buffer,
     // num_indices2: u32,
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture, // NEW
+    diffuse_texture: texture::Texture,
+
+    diffuse_bind_group2: wgpu::BindGroup,
+    diffuse_texture2: texture::Texture,
 
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
@@ -137,13 +140,9 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    // Creating some of the wgpu types requires async code
     async fn new(window: &'a Window) -> State<'a> {
         let size = window.inner_size();
-
         let num_vertices = VERTICES.len() as u32;
-
-        // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
@@ -207,7 +206,6 @@ impl<'a> State<'a> {
         let diffuse_bytes = include_bytes!("happy-tree.png");
         let diffuse_texture =
             texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -224,15 +222,12 @@ impl<'a> State<'a> {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        // This should match the filterable field of the
-                        // corresponding Texture entry above.
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
@@ -246,6 +241,48 @@ impl<'a> State<'a> {
                 },
             ],
             label: Some("diffuse_bind_group"),
+        });
+
+        let diffuse_bytes2 = include_bytes!("ntxt.jpg");
+        let diffuse_texture2 =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes2, "ntxt.jpg").unwrap();
+        // let texture_bind_group_layout2 =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 0,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 ty: wgpu::BindingType::Texture {
+        //                     multisampled: false,
+        //                     view_dimension: wgpu::TextureViewDimension::D2,
+        //                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        //                 },
+        //                 count: None,
+        //             },
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 1,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 // This should match the filterable field of the
+        //                 // corresponding Texture entry above.
+        //                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+        //                 count: None,
+        //             },
+        //         ],
+        //         label: Some("texture_bind_group_layout"),
+        //     });
+        let diffuse_bind_group2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture2.view), // CHANGED!
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture2.sampler), // CHANGED!
+                },
+            ],
+            label: Some("diffuse_bind_group2"),
         });
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader_tex.wgsl"));
@@ -386,6 +423,8 @@ impl<'a> State<'a> {
             // num_indices2,
             diffuse_bind_group,
             diffuse_texture,
+            diffuse_bind_group2,
+            diffuse_texture2,
         }
     }
 
@@ -456,19 +495,21 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-
             // render_pass.set_pipeline(if self.use_color {
             //     &self.render_pipeline
             // } else {
             //     &self.challenge_render_pipeline
             // });
+            //
+
+            let bind_group = if self.use_color {
+                &self.diffuse_bind_group
+            } else {
+                &self.diffuse_bind_group2
+            };
 
             if self.use_color {
+
                 // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                 // render_pass
                 //     .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
@@ -477,16 +518,23 @@ impl<'a> State<'a> {
                 // render_pass.set_pipeline(&self.render_pipeline);
                 // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             } else {
+                // render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]);
+                // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                // render_pass
+                //     .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+
                 // render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
                 // render_pass
                 //     .set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
                 // render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
             }
 
-            // render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
-            // render_pass.set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
-            // render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
-            // render_pass.draw(0..self.num_vertices, 0..1);
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
         // submit will accept anything that implements IntoIter
