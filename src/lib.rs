@@ -63,52 +63,6 @@ const VERTICES: &[Vertex] = &[
 ];
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
-// const VERTICES2: &[Vertex] = &[
-//     Vertex {
-//         position: [-0.35, 0.0, 0.0],
-//         color: [0.2, 0.1, 0.5],
-//     }, // A
-//     Vertex {
-//         position: [-0.5, -0.35, 0.0],
-//         color: [0.1, 0.7, 0.5],
-//     }, // B
-//     Vertex {
-//         position: [-0.2, -0.35, 0.0],
-//         color: [0.7, 0.3, 0.3],
-//     }, // C
-//     Vertex {
-//         position: [-0.05, 0.0, 0.0],
-//         color: [0.9, 0.64, 0.22],
-//     }, // D
-//     Vertex {
-//         position: [0.1, -0.35, 0.0],
-//         color: [1.0, 0.2, 0.2],
-//     }, // E
-//     Vertex {
-//         position: [-0.35, -0.70, 0.0],
-//         color: [0.2, 0.2, 0.2],
-//     }, // F
-//     Vertex {
-//         position: [-0.05, -0.70, 0.0],
-//         color: [0.2, 0.2, 0.2],
-//     }, // G
-//     Vertex {
-//         position: [0.1, 0.35, 0.0],
-//         color: [1.0, 0.2, 0.2],
-//     }, // H
-//     Vertex {
-//         position: [-0.05, 0.70, 0.0],
-//         color: [0.2, 0.2, 0.2],
-//     }, // I
-//     Vertex {
-//         position: [0.25, 0.70, 0.0],
-//         color: [0.2, 0.0, 0.0],
-//     }, // J
-// ];
-// const INDICES2: &[u16] = &[
-//     0, 1, 2, 0, 2, 3, 3, 2, 4, 1, 5, 2, 2, 6, 4, 7, 3, 4, 8, 3, 7, 8, 7, 9,
-// ];
-
 struct State<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -122,20 +76,11 @@ struct State<'a> {
     num_vertices: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-
-    // vertex_buffer2: wgpu::Buffer,
-    // num_vertices2: u32,
-    // index_buffer2: wgpu::Buffer,
-    // num_indices2: u32,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
 
     diffuse_bind_group2: wgpu::BindGroup,
     diffuse_texture2: texture::Texture,
-
-    // The window must be declared after the surface so
-    // it gets dropped after it as the surface contains
-    // unsafe references to the window's resources.
     window: &'a Window,
 }
 
@@ -246,30 +191,6 @@ impl<'a> State<'a> {
         let diffuse_bytes2 = include_bytes!("ntxt.jpg");
         let diffuse_texture2 =
             texture::Texture::from_bytes(&device, &queue, diffuse_bytes2, "ntxt.jpg").unwrap();
-        // let texture_bind_group_layout2 =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[
-        //             wgpu::BindGroupLayoutEntry {
-        //                 binding: 0,
-        //                 visibility: wgpu::ShaderStages::FRAGMENT,
-        //                 ty: wgpu::BindingType::Texture {
-        //                     multisampled: false,
-        //                     view_dimension: wgpu::TextureViewDimension::D2,
-        //                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
-        //                 },
-        //                 count: None,
-        //             },
-        //             wgpu::BindGroupLayoutEntry {
-        //                 binding: 1,
-        //                 visibility: wgpu::ShaderStages::FRAGMENT,
-        //                 // This should match the filterable field of the
-        //                 // corresponding Texture entry above.
-        //                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-        //                 count: None,
-        //             },
-        //         ],
-        //         label: Some("texture_bind_group_layout"),
-        //     });
         let diffuse_bind_group2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
@@ -389,19 +310,6 @@ impl<'a> State<'a> {
         });
         let num_indices = INDICES.len() as u32;
 
-        // let num_vertices2 = VERTICES2.len() as u32;
-        // let vertex_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Vertex buffer giraffe"),
-        //     contents: bytemuck::cast_slice(VERTICES2),
-        //     usage: wgpu::BufferUsages::VERTEX,
-        // });
-        // let index_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Index buffer giraffe"),
-        //     contents: bytemuck::cast_slice(INDICES2),
-        //     usage: wgpu::BufferUsages::INDEX,
-        // });
-        // let num_indices2 = INDICES2.len() as u32;
-
         Self {
             window,
             surface,
@@ -495,40 +403,11 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            // render_pass.set_pipeline(if self.use_color {
-            //     &self.render_pipeline
-            // } else {
-            //     &self.challenge_render_pipeline
-            // });
-            //
-
             let bind_group = if self.use_color {
                 &self.diffuse_bind_group
             } else {
                 &self.diffuse_bind_group2
             };
-
-            if self.use_color {
-
-                // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                // render_pass
-                //     .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-                //
-                // render_pass.set_pipeline(&self.render_pipeline);
-                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-            } else {
-                // render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]);
-                // render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                // render_pass
-                //     .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                // render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-
-                // render_pass.set_vertex_buffer(0, self.vertex_buffer2.slice(..));
-                // render_pass
-                //     .set_index_buffer(self.index_buffer2.slice(..), wgpu::IndexFormat::Uint16);
-                // render_pass.draw_indexed(0..self.num_indices2, 0, 0..1);
-            }
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, bind_group, &[]);
@@ -537,7 +416,6 @@ impl<'a> State<'a> {
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
-        // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
