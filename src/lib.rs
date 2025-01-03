@@ -70,8 +70,7 @@ struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    challenge_render_pipeline: wgpu::RenderPipeline,
-    use_color: bool,
+    space_pressed: bool,
     vertex_buffer: wgpu::Buffer,
     num_vertices: u32,
     index_buffer: wgpu::Buffer,
@@ -253,56 +252,13 @@ impl<'a> State<'a> {
             cache: None,
         });
 
-        let challenge_shader =
-            device.create_shader_module(wgpu::include_wgsl!("challenge_shader.wgsl"));
-        let challenge_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
-                layout: Some(&render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &challenge_shader,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &challenge_shader,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    ..Default::default()
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
-                cache: None,
-            });
-        let use_color = true;
+        let space_pressed = true;
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
             contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
-
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index buffer"),
             contents: bytemuck::cast_slice(INDICES),
@@ -318,17 +274,11 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
-            challenge_render_pipeline,
-            use_color,
+            space_pressed,
             vertex_buffer,
             num_vertices,
             index_buffer,
             num_indices,
-
-            // num_vertices2,
-            // vertex_buffer2,
-            // index_buffer2,
-            // num_indices2,
             diffuse_bind_group,
             diffuse_texture,
             diffuse_bind_group2,
@@ -360,7 +310,7 @@ impl<'a> State<'a> {
                     },
                 ..
             } => {
-                self.use_color = *state == ElementState::Released;
+                self.space_pressed = *state == ElementState::Released;
                 true
             }
             _ => false,
@@ -403,7 +353,7 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            let bind_group = if self.use_color {
+            let bind_group = if self.space_pressed {
                 &self.diffuse_bind_group
             } else {
                 &self.diffuse_bind_group2
