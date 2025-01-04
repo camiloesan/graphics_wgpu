@@ -87,8 +87,9 @@ impl Camera {
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         // 2.
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+
         // 3.
-        return OPENGL_TO_WGPU_MATRIX * proj * view;
+        OPENGL_TO_WGPU_MATRIX * proj * view
     }
 }
 
@@ -97,8 +98,6 @@ impl Camera {
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
-    // We can't use cgmath with bytemuck directly, so we'll have
-    // to convert the Matrix4 into a 4x4 f32 array
     view_proj: [[f32; 4]; 4],
 }
 
@@ -110,7 +109,7 @@ impl CameraUniform {
         }
     }
 
-    fn update_view_proj(&mut self, camera: &Camera) {
+    fn _update_view_proj(&mut self, camera: &Camera) {
         self.view_proj = camera.build_view_projection_matrix().into();
     }
 }
@@ -203,6 +202,26 @@ impl CameraController {
     }
 }
 
+struct CameraStaging {
+    camera: Camera,
+    model_rotation: cgmath::Deg<f32>,
+}
+
+impl CameraStaging {
+    fn new(camera: Camera) -> Self {
+        Self {
+            camera,
+            model_rotation: cgmath::Deg(0.0),
+        }
+    }
+    fn update_camera(&self, camera_uniform: &mut CameraUniform) {
+        camera_uniform.view_proj = (OPENGL_TO_WGPU_MATRIX
+            * self.camera.build_view_projection_matrix()
+            * cgmath::Matrix4::from_angle_z(self.model_rotation))
+        .into();
+    }
+}
+
 struct State<'a> {
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -219,9 +238,10 @@ struct State<'a> {
     diffuse_texture: texture::Texture,
     diffuse_bind_group2: wgpu::BindGroup,
     diffuse_texture2: texture::Texture,
-    camera: Camera,
+    // camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
+    camera_staging: CameraStaging,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
     window: &'a Window,
@@ -364,9 +384,11 @@ impl<'a> State<'a> {
             znear: 0.1,
             zfar: 100.0,
         };
+        let camera_controller = CameraController::new(0.2);
 
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+        let camera_staging = CameraStaging::new(camera);
+        camera_staging.update_camera(&mut camera_uniform);
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
@@ -394,8 +416,6 @@ impl<'a> State<'a> {
             }],
             label: Some("camera_bind_group"),
         });
-
-        let camera_controller = CameraController::new(0.2);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -469,13 +489,14 @@ impl<'a> State<'a> {
             num_vertices,
             index_buffer,
             num_indices,
-            camera,
+            // camera,
             diffuse_bind_group,
             diffuse_texture,
             diffuse_bind_group2,
             diffuse_texture2,
             camera_uniform,
             camera_buffer,
+            camera_staging,
             camera_bind_group,
             camera_controller,
         }
@@ -513,8 +534,10 @@ impl<'a> State<'a> {
     }
 
     fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_uniform.update_view_proj(&self.camera);
+        self.camera_controller
+            .update_camera(&mut self.camera_staging.camera);
+        self.camera_staging.model_rotation += cgmath::Deg(2.0);
+        self.camera_staging.update_camera(&mut self.camera_uniform);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
